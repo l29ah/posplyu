@@ -65,6 +65,11 @@ main = do
 			edited <- toUser editLocal
 			writeDB $ left ++ map (map zonedTimeToUTC) edited
 			return ()
+		["expect"] -> do
+			db <- readDB
+			let sleepOffset = 60 * 60 * 15
+			time <- utcToLocalZonedTime $ addUTCTime sleepOffset $ last $ last $ db
+			putStrLn $ "Sleepiness expected at " ++ (show time)
 		_ -> do
 			d <- openDisplay ""
 			flip evalStateT False $ forever $ pollIdle d
