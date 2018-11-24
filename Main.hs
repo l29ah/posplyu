@@ -52,6 +52,9 @@ pollIdle d = do
 	liftIO $ when (s1 /= s2) $ (forkIO $ notify s2) >> return ()
 	liftIO $ threadDelay $ pollPeriod * 1000
 
+isNap :: [UTCTime] -> Bool
+isNap [a, b] = diffUTCTime b a < 60 * 60 * 3
+
 main :: IO ()
 main = do
 	setFileCreationMask $ unionFileModes groupModes otherModes
@@ -68,7 +71,7 @@ main = do
 		["expect"] -> do
 			db <- readDB
 			let sleepOffset = 60 * 60 * 15
-			time <- utcToLocalZonedTime $ addUTCTime sleepOffset $ last $ last $ db
+			time <- utcToLocalZonedTime $ addUTCTime sleepOffset $ last $ head $ filter (not . isNap) $ reverse db
 			putStrLn $ "Sleepiness expected at " ++ (show time)
 		_ -> do
 			d <- openDisplay ""
