@@ -6,8 +6,10 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.State
 import Data.List
 import Data.List.Split
+import Data.Maybe
 import Data.Time.Clock
 import Data.Time.LocalTime
+import Data.Time.RFC3339
 import Graphics.X11
 import Graphics.X11.XScreenSaver
 import System.Environment
@@ -35,11 +37,11 @@ writeDB list = writeFile dbfn $ ser list
 toUser :: [[ZonedTime]] -> IO [[ZonedTime]]
 toUser list = do
 	let tmpfn = "tmp"
-	writeFile tmpfn $ ser list
+	writeFile tmpfn $ unlines $ map ((intercalate "\t") . (map formatTimeRFC3339)) list
 	system $ "vim " ++ tmpfn
 	fromUser <- readFile tmpfn
 	removeLink tmpfn
-	return $ des fromUser
+	return $ map ((map (fromJust . parseTimeRFC3339)) . (wordsBy (== '\t'))) $ lines $ fromUser
 
 pollIdle :: Display -> StateT Bool IO ()
 pollIdle d = do
@@ -61,9 +63,7 @@ main = do
 			--leftWithTZ <- mapM (mapM (\t -> (getTimeZone t) >>= (\z -> return (t, z)))) left
 			editLocal <- mapM (mapM utcToLocalZonedTime) edit
 			edited <- toUser editLocal
-			--writeDB $ left ++ edited
-			print edited
-			--print $ left ++ map (map zonedTimeToUTC) edited
+			writeDB $ left ++ map (map zonedTimeToUTC) edited
 			return ()
 		_ -> do
 			d <- openDisplay ""
