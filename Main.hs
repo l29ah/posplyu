@@ -12,6 +12,7 @@ import Data.Time.LocalTime
 import Data.Time.RFC3339
 import Graphics.X11
 import Graphics.X11.XScreenSaver
+import System.Console.GetOpt
 import System.Environment
 import System.Posix.Files
 import System.Process
@@ -19,7 +20,52 @@ import System.Process
 pollPeriod = 5000
 sleepThreshold = 1800000
 dbfn = "database"
-lastN = 10
+
+data Options = Options
+	{ optEdit :: Int
+	, optExpect :: Bool
+	} deriving Show
+
+defaultOptions    = Options
+	{ optEdit = 0
+	, optExpect = False
+	}
+
+options :: [OptDescr (Options -> Options)]
+options =
+	[ Option ['e'] ["edit"] (OptArg ((\a o -> o { optEdit = a }) . read . fromMaybe "10") "N") "edit the last N database entries"
+	, Option ['x'] ["expect"] (NoArg (\o -> o { optExpect = True })) "print the expected sleepiness time"
+	]
+
+parseOpts :: [String] -> IO Options
+parseOpts argv =
+	case getOpt Permute options argv of
+		(o,[],[]  ) -> return $ foldl (flip id) defaultOptions o
+		(_,_,errs) -> ioError (userError (concat errs ++ usageInfo header options))
+	where header = "Usage: posplyu"
+
+main :: IO ()
+main = do
+	setFileCreationMask $ unionFileModes groupModes otherModes
+	args <- getArgs
+	opts <- parseOpts args
+	when (0 < optEdit opts) $ do
+		db <- readDB
+		let (left, edit) = splitAt ((length db) - optEdit opts) db
+		--leftWithTZ <- mapM (mapM (\t -> (getTimeZone t) >>= (\z -> return (t, z)))) left
+		editLocal <- mapM (mapM utcToLocalZonedTime) edit
+		edited <- toUser editLocal
+		writeDB $ left ++ map (map zonedTimeToUTC) edited
+		return ()
+	when (optExpect opts) $ do
+		db <- readDB
+		let sleepOffset = 60 * 60 * 15
+		time <- utcToLocalZonedTime $ addUTCTime sleepOffset $ last $ head $ filter (not . isNap) $ reverse db
+		putStrLn $ "Sleepiness expected at " ++ (show time)
+	when (not $ or [0 < optEdit opts, optExpect opts]) $ do
+		d <- openDisplay ""
+		flip evalStateT False $ forever $ pollIdle d
+		return ()
 
 ser :: Show a => [[a]] -> String
 ser = unlines . map ((intercalate "\t") . (map show))
@@ -54,29 +100,6 @@ pollIdle d = do
 
 isNap :: [UTCTime] -> Bool
 isNap [a, b] = diffUTCTime b a < 60 * 60 * 3
-
-main :: IO ()
-main = do
-	setFileCreationMask $ unionFileModes groupModes otherModes
-	args <- getArgs
-	case args of
-		["edit"] -> do
-			db <- readDB
-			let (left, edit) = splitAt ((length db) - lastN) db
-			--leftWithTZ <- mapM (mapM (\t -> (getTimeZone t) >>= (\z -> return (t, z)))) left
-			editLocal <- mapM (mapM utcToLocalZonedTime) edit
-			edited <- toUser editLocal
-			writeDB $ left ++ map (map zonedTimeToUTC) edited
-			return ()
-		["expect"] -> do
-			db <- readDB
-			let sleepOffset = 60 * 60 * 15
-			time <- utcToLocalZonedTime $ addUTCTime sleepOffset $ last $ head $ filter (not . isNap) $ reverse db
-			putStrLn $ "Sleepiness expected at " ++ (show time)
-		_ -> do
-			d <- openDisplay ""
-			flip evalStateT False $ forever $ pollIdle d
-			return ()
 
 notify :: Bool -> IO ()
 notify status = do
