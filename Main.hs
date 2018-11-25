@@ -25,12 +25,14 @@ data Options = Options
 	{ optEdit :: Int
 	, optExpect :: Bool
 	, optDatabaseFile :: FilePath
+	, optList :: Bool
 	} deriving Show
 
 defaultOptions    = Options
 	{ optEdit = 0
 	, optExpect = False
 	, optDatabaseFile = ""
+	, optList = False
 	}
 
 options :: [OptDescr (Options -> Options)]
@@ -38,6 +40,7 @@ options =
 	[ Option ['e'] ["edit"] (OptArg ((\a o -> o { optEdit = a }) . read . fromMaybe "10") "N") "edit the last N database entries"
 	, Option ['x'] ["expect"] (NoArg (\o -> o { optExpect = True })) "print the expected sleepiness time"
 	, Option ['d'] ["database-file"] (ReqArg (\a o -> o { optDatabaseFile = a}) "FILE") "use FILE as the sleep data base"
+	, Option ['l'] ["list"] (NoArg (\o -> o { optList = True })) "display the database in the current timezone"
 	]
 
 parseOpts :: [String] -> IO Options
@@ -57,17 +60,19 @@ main = do
 	when (0 < optEdit opts) $ do
 		db <- readDB $ optDatabaseFile opts
 		let (left, edit) = splitAt ((length db) - optEdit opts) db
-		--leftWithTZ <- mapM (mapM (\t -> (getTimeZone t) >>= (\z -> return (t, z)))) left
 		editLocal <- mapM (mapM utcToLocalZonedTime) edit
 		edited <- toUser editLocal
 		writeDB (optDatabaseFile opts) $ left ++ map (map zonedTimeToUTC) edited
-		return ()
+	when (optList opts) $ do
+		db <- readDB $ optDatabaseFile opts
+		times <- mapM (mapM utcToLocalZonedTime) db
+		putStr $ formatUser times
 	when (optExpect opts) $ do
 		db <- readDB $ optDatabaseFile opts
 		let sleepOffset = 60 * 60 * 15
 		time <- utcToLocalZonedTime $ addUTCTime sleepOffset $ last $ head $ filter (not . isNap) $ reverse db
 		putStrLn $ "Sleepiness expected at " ++ (show time)
-	when (not $ or [0 < optEdit opts, optExpect opts]) $ do
+	when (not $ or [0 < optEdit opts, optExpect opts, optList opts]) $ do
 		let dirname = intercalate "/" $ init $ split (dropDelims $ whenElt (== '/')) $ optDatabaseFile opts
 		createDirectoryIfMissing True dirname
 		d <- openDisplay ""
@@ -87,10 +92,13 @@ readDB dbfn = do
 writeDB :: FilePath -> [[UTCTime]] -> IO ()
 writeDB dbfn list = writeFile dbfn $ ser list
 
+formatUser :: [[ZonedTime]] -> String
+formatUser = unlines . map ((intercalate "\t") . (map formatTimeRFC3339))
+
 toUser :: [[ZonedTime]] -> IO [[ZonedTime]]
 toUser list = do
 	let tmpfn = "tmp"
-	writeFile tmpfn $ unlines $ map ((intercalate "\t") . (map formatTimeRFC3339)) list
+	writeFile tmpfn $ formatUser list
 	system $ "vim " ++ tmpfn
 	fromUser <- readFile tmpfn
 	removeLink tmpfn
