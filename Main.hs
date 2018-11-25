@@ -13,6 +13,7 @@ import Data.Time.RFC3339
 import Graphics.X11
 import Graphics.X11.XScreenSaver
 import System.Console.GetOpt
+import System.Directory
 import System.Environment
 import System.Posix.Files
 import System.Process
@@ -43,8 +44,8 @@ parseOpts :: [String] -> IO Options
 parseOpts argv =
 	case getOpt Permute options argv of
 		(o,[],[]  ) -> do
-			home <- getEnv "HOME"
-			return $ foldl (flip id) (defaultOptions { optDatabaseFile = home ++ "/.config/posplyu/database" }) o
+			home <- getAppUserDataDirectory "posplyu"
+			return $ foldl (flip id) (defaultOptions { optDatabaseFile = home ++ "/database" }) o
 		(_,_,errs) -> ioError (userError (concat errs ++ usageInfo header options))
 	where header = "Usage: posplyu"
 
@@ -67,6 +68,8 @@ main = do
 		time <- utcToLocalZonedTime $ addUTCTime sleepOffset $ last $ head $ filter (not . isNap) $ reverse db
 		putStrLn $ "Sleepiness expected at " ++ (show time)
 	when (not $ or [0 < optEdit opts, optExpect opts]) $ do
+		let dirname = intercalate "/" $ init $ split (dropDelims $ whenElt (== '/')) $ optDatabaseFile opts
+		createDirectoryIfMissing True dirname
 		d <- openDisplay ""
 		flip evalStateT False $ forever $ pollIdle d $ optDatabaseFile opts
 		return ()
