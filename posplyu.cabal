@@ -13,7 +13,7 @@ executable posplyu
   main-is:              Main.hs
   -- other-modules:
   -- other-extensions:
-  build-depends:        base >= 4.11 && < 4.12,
+  build-depends:        base >= 4.11 && < 4.13,
                         X11 >= 1.9 && < 1.10,
                         transformers >= 0.5.5.0 && < 0.6,
                         time >= 1.8.0.2 && < 1.9,
