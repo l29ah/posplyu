@@ -99,7 +99,7 @@ toUser :: [[ZonedTime]] -> IO [[ZonedTime]]
 toUser list = do
 	let tmpfn = "tmp"
 	writeFile tmpfn $ formatUser list
-	system $ "vim " ++ tmpfn
+	system $ "\"$EDITOR\" " ++ tmpfn
 	fromUser <- readFile tmpfn
 	removeLink tmpfn
 	return $ map ((map (fromJust . parseTimeRFC3339)) . (wordsBy (== '\t'))) $ lines $ fromUser
