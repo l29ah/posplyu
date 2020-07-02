@@ -1,6 +1,6 @@
 name:                posplyu
 -- semver
-version:             0.1.0
+version:             0.1.0.1
 synopsis:            Sleep tracker for X11, using XScreenSaver extension and manual input.
 description:         posplyu is a sleep tracker for X11, using XScreenSaver extension and manual input, motivated by http://super-memory.com/articles/sleep.htm and designed to facilitate transitioning to the free running sleep regiment while living mostly with a GNU/Linux system handy. The tool allows you to measure and somewhat predict your sleeping cycle. For now it assumes a 24h cycle with one sleep period.
 category:            Tools
@@ -18,17 +18,17 @@ Source-repository head
 Source-repository this
   type:              git
   location:          https://github.com/l29ah/posplyu.git
-  tag:               0.1.0
+  tag:               0.1.0.1
 
 
 executable posplyu
   main-is:              Main.hs
   -- other-modules:
   -- other-extensions:
-  build-depends:        base >= 4.11 && < 4.13,
+  build-depends:        base >= 4.11 && < 4.15,
                         X11 >= 1.9 && < 1.10,
                         transformers >= 0.5.5.0 && < 0.6,
-                        time >= 1.8.0.2 && < 1.9,
+                        time >= 1.8.0.2 && < 1.10,
                         split >= 0.2.3.3 && < 0.3,
                         unix >= 2.7.2.2 && < 2.8,
                         process >= 1.6.3.0 && < 1.7,
