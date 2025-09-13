@@ -23,7 +23,7 @@ Source-repository this
 
 executable posplyu
   main-is:              Main.hs
-  -- other-modules:
+  other-modules:        ShowTDiff
   -- other-extensions:
   build-depends:        base >= 4.11 && < 5,
                         X11 >= 1.9 && < 1.11,

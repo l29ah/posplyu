@@ -18,6 +18,8 @@ import System.Environment
 import System.Posix.Files
 import System.Process
 
+import ShowTDiff
+
 pollPeriod = 5000
 sleepThreshold = 1800000
 
@@ -70,8 +72,13 @@ main = do
 	when (optExpect opts) $ do
 		db <- readDB $ optDatabaseFile opts
 		let sleepOffset = 60 * 60 * 15
-		time <- utcToLocalZonedTime $ addUTCTime sleepOffset $ last $ head $ filter (not . isNap) $ reverse db
-		putStrLn $ "Sleepiness expected at " ++ (show time)
+		let expectedTime = addUTCTime sleepOffset $ last $ head $ filter (not . isNap) $ reverse db
+		expectedLocalTime <- utcToLocalZonedTime expectedTime
+		currentTime <- getCurrentTime
+		let relTimeS = if expectedTime > currentTime
+			then "in " ++ showTDiff (diffUTCTime expectedTime currentTime)
+			else showTDiff (diffUTCTime currentTime expectedTime) ++ " ago"
+		putStrLn $ "Sleepiness expected at " ++ show expectedLocalTime ++ " (" ++ relTimeS ++ ")"
 	when (not $ or [0 < optEdit opts, optExpect opts, optList opts]) $ do
 		let dirname = intercalate "/" $ init $ split (dropDelims $ whenElt (== '/')) $ optDatabaseFile opts
 		createDirectoryIfMissing True dirname
