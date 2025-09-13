@@ -1,3 +1,4 @@
+{-# LANGUAGE StrictData #-}
 module Main where
 
 import Control.Concurrent
@@ -50,7 +51,7 @@ parseOpts argv =
 	case getOpt Permute options argv of
 		(o,[],[]  ) -> do
 			home <- getAppUserDataDirectory "posplyu"
-			return $ foldl (flip id) (defaultOptions { optDatabaseFile = home ++ "/database" }) o
+			return $ foldl' (flip id) (defaultOptions { optDatabaseFile = home ++ "/database" }) o
 		(_,_,errs) -> ioError (userError (concat errs ++ usageInfo header options))
 	where header = "Usage: posplyu"
 
