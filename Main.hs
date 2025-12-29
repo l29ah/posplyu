@@ -29,6 +29,7 @@ data Options = Options
 	, optExpect :: Bool
 	, optDatabaseFile :: FilePath
 	, optList :: Bool
+	, optAverage :: Word
 	} deriving Show
 
 defaultOptions    = Options
@@ -36,6 +37,7 @@ defaultOptions    = Options
 	, optExpect = False
 	, optDatabaseFile = ""
 	, optList = False
+	, optAverage = 0
 	}
 
 options :: [OptDescr (Options -> Options)]
@@ -44,6 +46,7 @@ options =
 	, Option ['x'] ["expect"] (NoArg (\o -> o { optExpect = True })) "print the expected sleepiness time"
 	, Option ['d'] ["database-file"] (ReqArg (\a o -> o { optDatabaseFile = a}) "FILE") "use FILE as the sleep data base"
 	, Option ['l'] ["list"] (NoArg (\o -> o { optList = True })) "display the database in the current timezone"
+	, Option ['a'] ["average"] (OptArg ((\a o -> o { optAverage = a }) . read . fromMaybe "30") "N") "show the average daily sleep of the last N days"
 	]
 
 parseOpts :: [String] -> IO Options
@@ -66,6 +69,13 @@ main = do
 		editLocal <- mapM (mapM utcToLocalZonedTime) edit
 		edited <- toUser editLocal
 		writeDB (optDatabaseFile opts) $ left ++ map (map zonedTimeToUTC) edited
+	when (0 < optAverage opts) $ do
+		db <- readDB $ optDatabaseFile opts
+		t <- getCurrentTime
+		let sleepPeriods = takeWhile (\[x, y] -> (diffUTCTime t y) < ((fromIntegral $ optAverage opts) * nominalDay)) $ filter (not . isNap) $ reverse db
+		let totalSlept = sum $ map (\[x, y] -> diffUTCTime y x) sleepPeriods
+		let sleptPerDayHours = (fromIntegral $ round totalSlept) / (3600.0 * (fromIntegral $ optAverage opts))
+		print (sleptPerDayHours :: Double)
 	when (optList opts) $ do
 		db <- readDB $ optDatabaseFile opts
 		times <- mapM (mapM utcToLocalZonedTime) db
@@ -80,7 +90,7 @@ main = do
 			then "in " ++ showTDiff (diffUTCTime expectedTime currentTime)
 			else showTDiff (diffUTCTime currentTime expectedTime) ++ " ago"
 		putStrLn $ "Sleepiness expected at " ++ show expectedLocalTime ++ " (" ++ relTimeS ++ ")"
-	when (not $ or [0 < optEdit opts, optExpect opts, optList opts]) $ do
+	when (not $ or [0 < optEdit opts, 0 < optAverage opts, optExpect opts, optList opts]) $ do
 		let dirname = intercalate "/" $ init $ split (dropDelims $ whenElt (== '/')) $ optDatabaseFile opts
 		createDirectoryIfMissing True dirname
 		d <- openDisplay ""
