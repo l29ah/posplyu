@@ -123,6 +123,7 @@ pollIdle d dbfn = do
 
 isNap :: [UTCTime] -> Bool
 isNap [a, b] = diffUTCTime b a < 60 * 60 * 3
+isNap a = error $ "Unexpected nap: " ++ show a
 
 notify :: FilePath -> Bool -> IO ()
 notify dbfn status = do
